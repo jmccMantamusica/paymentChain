@@ -7,6 +7,7 @@ import product.entities.Product;
 import product.repository.ProductRepository;
 
 import java.util.List;
+import java.util.Optional;
 
 @RestController
 @RequestMapping("/product")
@@ -21,13 +22,19 @@ public class ProductRestController {
     }
 
     @GetMapping("/{id}")
-    public Object get(@PathVariable String id) {
-        return null;
+    public Product get(@PathVariable long id) {
+        return productRepository.findById(id).get();
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<?> put(@PathVariable String id, @RequestBody Product input) {
-        return null;
+    public ResponseEntity<?> put(@PathVariable long id, @RequestBody Product input) {
+        Product find = productRepository.findById(id).get();
+        if(find != null){
+            find.setCode(input.getCode());
+            find.setName(input.getName());
+        }
+        Product save = productRepository.save(find);
+        return ResponseEntity.ok(save);
     }
 
     @PostMapping
@@ -37,7 +44,11 @@ public class ProductRestController {
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<?> delete(@PathVariable String id) {
+    public ResponseEntity<?> delete(@PathVariable long id) {
+        Optional<Product> findById = productRepository.findById(id);
+        if(findById.get() != null){
+            productRepository.delete(findById.get());
+        }
         return null;
     }
 
