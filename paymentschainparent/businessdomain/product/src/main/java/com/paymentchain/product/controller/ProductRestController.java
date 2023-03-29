@@ -1,10 +1,10 @@
-package product.controller;
+package com.paymentchain.product.controller;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import product.entities.Product;
-import product.repository.ProductRepository;
+import com.paymentchain.product.entities.Product;
+import com.paymentchain.product.repository.ProductRepository;
 
 import java.util.List;
 import java.util.Optional;

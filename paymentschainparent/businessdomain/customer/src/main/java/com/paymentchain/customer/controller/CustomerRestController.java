@@ -1,13 +1,28 @@
 package com.paymentchain.customer.controller;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.paymentchain.customer.entities.Customer;
+import com.paymentchain.customer.entities.CustomerProduct;
 import com.paymentchain.customer.repository.CustomerRepository;
+import io.netty.channel.ChannelOption;
+import io.netty.channel.epoll.EpollChannelOption;
+import io.netty.handler.timeout.ReadTimeoutHandler;
+import io.netty.handler.timeout.WriteTimeoutHandler;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.client.reactive.ReactorClientHttpConnector;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.reactive.function.client.WebClient;
+import reactor.netty.http.client.HttpClient;
 
+import java.time.Duration;
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.TimeUnit;
 
 @RestController
 @RequestMapping("/customer")
@@ -15,6 +30,28 @@ public class CustomerRestController {
 
     @Autowired
     CustomerRepository customerRepository;
+
+    private final WebClient.Builder webClienteBuilder;
+
+    public CustomerRestController(WebClient.Builder webClienteBuilder) {
+        this.webClienteBuilder = webClienteBuilder;
+    }
+    
+    //webClient requires HttpClient library to work properly
+    HttpClient client = HttpClient.create()
+            //Connection timeout: is a period within which a connection between a client and a server must be established
+            .option(ChannelOption.CONNECT_TIMEOUT_MILLIS, 5000)
+            .option(ChannelOption.SO_KEEPALIVE, true)
+            .option(EpollChannelOption.TCP_KEEPIDLE, 300)
+            .option(EpollChannelOption.TCP_KEEPINTVL, 60)
+            //Response Timeout: the maximun time we wait to receive a response after sending a request
+            .responseTimeout(Duration.ofSeconds(1))
+            //Read and Write timeout: a read timeout occurs when no data was read within a certain
+            //period of time, while to write timeout when a write operation cannot finish a specific time
+            .doOnConnected(connection -> {
+                connection.addHandlerLast(new ReadTimeoutHandler(5000, TimeUnit.MILLISECONDS));
+                connection.addHandlerLast(new WriteTimeoutHandler(5000, TimeUnit.MILLISECONDS));
+            });
 
     @GetMapping()
     public List<Customer> findAll() {
@@ -27,13 +64,22 @@ public class CustomerRestController {
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<?> put(@PathVariable String id, @RequestBody Customer input) {
-        Customer save = customerRepository.save(input);
+    public ResponseEntity<?> put(@PathVariable long id, @RequestBody Customer input) {
+        Customer find = customerRepository.findById(id).get();
+        if(find != null){
+            find.setCode(input.getCode());
+            find.setName(input.getName());
+            find.setIban(input.getIban());
+            find.setPhone(input.getPhone());
+            find.setSurname(input.getSurname());
+        }
+        Customer save = customerRepository.save(find);
         return ResponseEntity.ok(save);
     }
 
     @PostMapping
     public ResponseEntity<?> post(@RequestBody Customer input) {
+        input.getProducts().forEach(x -> x.setCustomer(input));
         Customer save = customerRepository.save(input);
         return ResponseEntity.ok(save);
     }
@@ -45,6 +91,56 @@ public class CustomerRestController {
             customerRepository.delete(findById.get());
         }
         return null;
+    }
+
+    @GetMapping("/{id}full")
+    public Customer getByCode(@RequestParam String code) {
+        Customer customer = customerRepository.findByCode(code);
+        List<CustomerProduct>  products = customer.getProducts();
+        products.forEach( x -> {
+            String productName = getProductName(x.getId());
+            x.setProductName(productName);
+        });
+
+        //find all transactions that belong this account number
+        List<?> transactions = getTransactions(customer.getIban());
+        customer.setTransaction(transactions);
+        return customer;
+    }
+
+    /**
+     * Call Product Microservice, find a product by "id" and return it names
+     * @param id of product to find
+     * @return name of product if it was found
+     */
+    private String getProductName(long id){
+        WebClient build = webClienteBuilder.clientConnector(new ReactorClientHttpConnector(client))
+                .baseUrl("http://localhost:8082/product")
+                .defaultHeader(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
+                .defaultUriVariables(Collections.singletonMap("url", "http://localhost:8082/product"))
+                .build();
+        JsonNode block = build.method(HttpMethod.GET).uri("/" + id)
+                .retrieve().bodyToMono(JsonNode.class).block();
+        String name = block.get("name").asText();
+        return name;
+    }
+
+    /**
+     * Call Transaction Microservice, find all transaction that belong to he account give
+     * @param iban account number of the customer
+     * @return all transaction that belong this account
+     */
+    private List<?> getTransactions(String iban){
+        WebClient build = webClienteBuilder.clientConnector(new ReactorClientHttpConnector(client))
+                .baseUrl("http://localhost:8083/transaction")
+                .defaultHeader(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
+                .build();
+        List<?> transactions = build.method(HttpMethod.GET).uri(uriBuilder -> uriBuilder
+                .path("/customer/transactions")
+                .queryParam("ibanAccount", iban)
+                .build())
+                .retrieve().bodyToFlux(Object.class).collectList().block();
+        return transactions;
     }
 
 }

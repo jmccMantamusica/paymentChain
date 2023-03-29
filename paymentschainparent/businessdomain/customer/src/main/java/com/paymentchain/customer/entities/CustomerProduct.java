@@ -1,11 +1,14 @@
 package com.paymentchain.customer.entities;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
-import lombok.Data;
+import lombok.*;
 
 import javax.persistence.*;
-@Data
 @Entity
+@Getter
+@Setter
+@AllArgsConstructor
+@NoArgsConstructor
 public class CustomerProduct {
     @Id
     @GeneratedValue(strategy = GenerationType.AUTO)

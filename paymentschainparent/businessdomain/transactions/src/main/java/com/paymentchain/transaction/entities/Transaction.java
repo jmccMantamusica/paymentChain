@@ -22,12 +22,12 @@ public class Transaction {
     @GeneratedValue(strategy = GenerationType.AUTO)
     private long id;
     private String reference;
-    private String accountIban;
+    private String ibanAccount;
     private DateTime date;
     private Double amount;
     private Double fee;
     private String description;
-    private Status status;
-    private Channel channel;
+    private String status;
+    private String channel;
 
 }
