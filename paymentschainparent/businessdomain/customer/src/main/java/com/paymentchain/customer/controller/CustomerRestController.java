@@ -1,146 +1,141 @@
+/*
+ * To change this license header, choose License Headers in Project Properties.
+ * To change this template file, choose Tools | Templates
+ * and open the template in the editor.
+ */
 package com.paymentchain.customer.controller;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.paymentchain.customer.entities.Customer;
 import com.paymentchain.customer.entities.CustomerProduct;
-import com.paymentchain.customer.repository.CustomerRepository;
+import com.paymentchain.customer.respository.CustomerRepository;
 import io.netty.channel.ChannelOption;
-import io.netty.channel.epoll.EpollChannelOption;
 import io.netty.handler.timeout.ReadTimeoutHandler;
 import io.netty.handler.timeout.WriteTimeoutHandler;
+import java.util.Collections;
+import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.RequestMapping;
+import java.util.List;
+import java.util.concurrent.TimeUnit;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.client.reactive.ReactorClientHttpConnector;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.netty.http.client.HttpClient;
+import reactor.netty.tcp.TcpClient;
 
-import java.time.Duration;
-import java.util.Collections;
-import java.util.List;
-import java.util.Optional;
-import java.util.concurrent.TimeUnit;
-
+/**
+ *
+ * @author sotobotero
+ */
 @RestController
 @RequestMapping("/customer")
 public class CustomerRestController {
-
+    
     @Autowired
     CustomerRepository customerRepository;
-
-    private final WebClient.Builder webClienteBuilder;
-
-    public CustomerRestController(WebClient.Builder webClienteBuilder) {
-        this.webClienteBuilder = webClienteBuilder;
+    
+    @Value("${user.role}")
+    private String role;
+  
+        private final WebClient.Builder webClientBuilder;
+    
+       public CustomerRestController(WebClient.Builder webClientBuilder) {
+        this.webClientBuilder = webClientBuilder;
     }
     
-    //webClient requires HttpClient library to work properly
-    HttpClient client = HttpClient.create()
-            //Connection timeout: is a period within which a connection between a client and a server must be established
+    //define timeout
+    TcpClient tcpClient = TcpClient
+            .create()
             .option(ChannelOption.CONNECT_TIMEOUT_MILLIS, 5000)
-            .option(ChannelOption.SO_KEEPALIVE, true)
-            .option(EpollChannelOption.TCP_KEEPIDLE, 300)
-            .option(EpollChannelOption.TCP_KEEPINTVL, 60)
-            //Response Timeout: the maximun time we wait to receive a response after sending a request
-            .responseTimeout(Duration.ofSeconds(1))
-            //Read and Write timeout: a read timeout occurs when no data was read within a certain
-            //period of time, while to write timeout when a write operation cannot finish a specific time
             .doOnConnected(connection -> {
                 connection.addHandlerLast(new ReadTimeoutHandler(5000, TimeUnit.MILLISECONDS));
                 connection.addHandlerLast(new WriteTimeoutHandler(5000, TimeUnit.MILLISECONDS));
             });
-
-    @GetMapping()
-    public List<Customer> findAll() {
+    
+       @GetMapping("/full")
+    public Customer get(@RequestParam  String code) {   
+        Customer customer = customerRepository.findByCode(code);
+        List<CustomerProduct> products = customer.getProducts();
+        products.forEach(dto -> { 
+            String productName = getProductName(dto.getProductId());
+            dto.setProductName(productName);
+        });          
+        customer.setTransactions(getTransacctions(customer.getIban()));   
+        return customer;   
+    }
+    
+    private <T> List<T> getTransacctions(String accountIban) {
+        WebClient client = webClientBuilder.clientConnector(new ReactorClientHttpConnector(HttpClient.from(tcpClient)))
+                .baseUrl("http://businessdomain-transactions/transaction")
+                .defaultHeader(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
+                .defaultUriVariables(Collections.singletonMap("url", "http://businessdomain-transactions/transaction"))
+                .build();        
+        List<Object> block = client.method(HttpMethod.GET).uri(uriBuilder -> uriBuilder
+                .path("/transactions")
+                .queryParam("ibanAccount", accountIban)               
+                .build())
+                .retrieve().bodyToFlux(Object.class).collectList().block();
+        List<T> name = (List<T>) block;
+        return name;
+    }   
+   
+    
+    private  String getProductName(long id) {
+        WebClient client = webClientBuilder.clientConnector(new ReactorClientHttpConnector(HttpClient.from(tcpClient)))
+                .baseUrl("http://businessdomain-product/product")
+                .defaultHeader(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
+                .defaultUriVariables(Collections.singletonMap("url", "http://businessdomain-product/product"))
+                .build();        
+        JsonNode block = client.method(HttpMethod.GET).uri("/"+id)
+                .retrieve().bodyToMono(JsonNode.class).block(); 
+        String name = block.get("name").asText();
+        return name;
+    }       
+    
+   
+     @GetMapping()
+    public List<Customer> list() {
         return customerRepository.findAll();
     }
-
+      @GetMapping("/hello")
+    public String sayHello() {
+        return "Hello your role is: "+ role;
+    }
+    
     @GetMapping("/{id}")
-    public Customer get(@PathVariable long id) {
-        return customerRepository.findById(id).get();
-    }
-
+    public Customer get(@PathVariable long id) {   
+        Customer customer = customerRepository.findById(id).get();         
+        return customer;   
+    }  
+   
+    
     @PutMapping("/{id}")
-    public ResponseEntity<?> put(@PathVariable long id, @RequestBody Customer input) {
-        Customer find = customerRepository.findById(id).get();
-        if(find != null){
-            find.setCode(input.getCode());
-            find.setName(input.getName());
-            find.setIban(input.getIban());
-            find.setPhone(input.getPhone());
-            find.setSurname(input.getSurname());
-        }
-        Customer save = customerRepository.save(find);
-        return ResponseEntity.ok(save);
+    public ResponseEntity<?> put(@PathVariable String id, @RequestBody Customer input) {
+        return null;
     }
-
-    @PostMapping
-    public ResponseEntity<?> post(@RequestBody Customer input) {
+    
+   @PostMapping
+    public ResponseEntity<?> post(@RequestBody Customer input) { 
         input.getProducts().forEach(x -> x.setCustomer(input));
         Customer save = customerRepository.save(input);
         return ResponseEntity.ok(save);
     }
-
+    
     @DeleteMapping("/{id}")
-    public ResponseEntity<?> delete(@PathVariable long id) {
-        Optional<Customer> findById = customerRepository.findById(id);
-        if(findById.get().getId() == id){
-            customerRepository.delete(findById.get());
-        }
+    public ResponseEntity<?> delete(@PathVariable String id) {
         return null;
     }
-
-    @GetMapping("/{id}full")
-    public Customer getByCode(@RequestParam String code) {
-        Customer customer = customerRepository.findByCode(code);
-        List<CustomerProduct>  products = customer.getProducts();
-        products.forEach( x -> {
-            String productName = getProductName(x.getId());
-            x.setProductName(productName);
-        });
-
-        //find all transactions that belong this account number
-        List<?> transactions = getTransactions(customer.getIban());
-        customer.setTransaction(transactions);
-        return customer;
-    }
-
-    /**
-     * Call Product Microservice, find a product by "id" and return it names
-     * @param id of product to find
-     * @return name of product if it was found
-     */
-    private String getProductName(long id){
-        WebClient build = webClienteBuilder.clientConnector(new ReactorClientHttpConnector(client))
-                .baseUrl("http://localhost:8082/product")
-                .defaultHeader(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
-                .defaultUriVariables(Collections.singletonMap("url", "http://localhost:8082/product"))
-                .build();
-        JsonNode block = build.method(HttpMethod.GET).uri("/" + id)
-                .retrieve().bodyToMono(JsonNode.class).block();
-        String name = block.get("name").asText();
-        return name;
-    }
-
-    /**
-     * Call Transaction Microservice, find all transaction that belong to he account give
-     * @param iban account number of the customer
-     * @return all transaction that belong this account
-     */
-    private List<?> getTransactions(String iban){
-        WebClient build = webClienteBuilder.clientConnector(new ReactorClientHttpConnector(client))
-                .baseUrl("http://localhost:8083/transaction")
-                .defaultHeader(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
-                .build();
-        List<?> transactions = build.method(HttpMethod.GET).uri(uriBuilder -> uriBuilder
-                .path("/customer/transactions")
-                .queryParam("ibanAccount", iban)
-                .build())
-                .retrieve().bodyToFlux(Object.class).collectList().block();
-        return transactions;
-    }
-
+    
 }
