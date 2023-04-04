@@ -20,8 +20,8 @@
         <dependency>
             <groupId>org.springframework.cloud</groupId>
             <artifactId>spring-cloud-starter-netflix-eureka-server</artifactId>
-        </dependency>                
-        </dependencies>    
+        </dependency>                     
+    </dependencies>    
 
     <build>
         <plugins>   
@@ -30,7 +30,7 @@
              <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>     
-<!--                <version>${spring-boot-maven-plugin.version}</version>      -->
+                <version>${spring-boot-maven-plugin.version}</version>      
                 <executions>
                     <execution>
                         <goals>

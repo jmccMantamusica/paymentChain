@@ -54,8 +54,10 @@
     <properties>
         <maven.compiler.source>1.8</maven.compiler.source>
         <maven.compiler.target>1.8</maven.compiler.target> 
-        <spring-boot.version>2.6.2</spring-boot.version>
-        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding> 
+        <spring-boot.version>2.3.4.RELEASE</spring-boot.version>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>      
+        <spring-boot-starter-web.version>2.3.4.RELEASE</spring-boot-starter-web.version>
+        <spring-boot-maven-plugin.version>2.3.4.RELEASE</spring-boot-maven-plugin.version>   
         <postgres.version>42.2.16</postgres.version>    
         <java-validation.version>2.0.1.Final</java-validation.version> 
         <dockerfile-maven-version>1.4.13</dockerfile-maven-version>
@@ -77,7 +79,7 @@
     <dependencies>
         <!--Gives us the ability to quickly setup and run services
         Property Defaults,Automatic Restart,Live Reload,Global Settings,Remote Applications for debug example via http--> 	
-
+      
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter</artifactId>
@@ -135,7 +137,7 @@
             <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>     
-               <version>${spring-boot.version}</version>
+                <version>${spring-boot-maven-plugin.version}</version>      
                 <executions>
                     <execution>
                         <goals>
@@ -144,7 +146,7 @@
                     </execution>
                 </executions>
             </plugin>        
-       <!--  <plugin>
+          <plugin>
                 <groupId>com.spotify</groupId>
                 <artifactId>dockerfile-maven-plugin</artifactId>
                 <version>${dockerfile-maven-version}</version>                               
@@ -165,7 +167,7 @@
                         <JAR_FILE>${project.build.finalName}.jar</JAR_FILE>
                     </buildArgs>
                 </configuration>
-            </plugin>-->
+            </plugin>
             
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
