@@ -3,7 +3,7 @@
  * To change this template file, choose Tools | Templates
  * and open the template in the editor.
  */
-package com.paymentchain.customer.business.transactions;
+package com.paymentchain.customer.service;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.paymentchain.customer.respository.CustomerRepository;
@@ -15,7 +15,7 @@ import com.paymentchain.customer.exception.BussinesRuleException;
 import io.netty.channel.ChannelOption;
 import io.netty.handler.timeout.ReadTimeoutHandler;
 import io.netty.handler.timeout.WriteTimeoutHandler;
-import java.net.ConnectException;
+
 import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.Collections;
