@@ -7,7 +7,6 @@ package com.paymentchain.transactions.controller;
 
 import com.paymentchain.transactions.entities.Transaction;
 import com.paymentchain.transactions.respository.TransactionRepository;
-import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.bind.annotation.RequestMapping;
 import java.util.List;
@@ -35,28 +34,18 @@ public class TransactionRestController {
     
       
     @GetMapping()
-    public ResponseEntity<List<Transaction>> list() {
-        List<Transaction> findAll = transactionRepository.findAll();
-        if(findAll == null || findAll.isEmpty()){
-            return ResponseEntity.noContent().build();
-        }else{
-            return ResponseEntity.ok(findAll);
-        }
+    public List<Transaction> list() {
+        return transactionRepository.findAll();
     }
     
     @GetMapping("/{id}")
     public ResponseEntity<Transaction> get(@PathVariable long id) {
-         return transactionRepository.findById(id).map(ResponseEntity::ok).orElse(ResponseEntity.notFound().build());
+         return transactionRepository.findById(id).map(x -> ResponseEntity.ok(x)).orElse(ResponseEntity.notFound().build());      
     }
     
     @GetMapping("/transactions")
-    public ResponseEntity<List<Transaction>> get(@RequestParam String ibanAccount) {
-      List<Transaction> findByIbanAccount = transactionRepository.findByIbanAccount(ibanAccount);
-        if(findByIbanAccount == null || findByIbanAccount.isEmpty()){
-            return ResponseEntity.noContent().build();
-        }else{
-            return ResponseEntity.ok(findByIbanAccount);
-        }
+    public List<Transaction> get(@RequestParam String ibanAccount) {
+      return transactionRepository.findByIbanAccount(ibanAccount);      
     }
     
     @PutMapping("/{id}")
@@ -67,7 +56,7 @@ public class TransactionRestController {
     @PostMapping
     public ResponseEntity<?> post(@RequestBody Transaction input) {
         Transaction save = transactionRepository.save(input);
-        return new ResponseEntity<>(save, HttpStatus.CREATED);
+        return ResponseEntity.ok(save);
     }
     
     @DeleteMapping("/{id}")

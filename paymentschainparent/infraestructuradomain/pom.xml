@@ -15,6 +15,7 @@
         <module>eureka</module>
         <module>adminServer</module>
         <module>configServer</module>
+        <module>apigateway</module>
     </modules>
     <properties>
         <spring-cloud-dependencies.version>Hoxton.SR8</spring-cloud-dependencies.version>
