@@ -17,9 +17,36 @@ spring:
   cloud:
     gateway:
       routes:
+      - id: customer_full
+        uri: lb://businessdomain-customer
+        predicates:
+        - Path=/customer/full/**
+        filters:
+        - name: AuthenticationFiltering   
+    
+        
       - id: customer_service
         uri: lb://businessdomain-customer
         predicates:
-        - Path=/**
+        - Path=/customer/**
+        
+          
+      - id: transactionService
+        #If the URL has a scheme of lb (such as lb://myservice), it uses the Spring Cloud LoadBalancerClient to resolve the name (myservice in this case) 
+        uri: lb://businessdomain-transactions
+        predicates:
+        - Path=/transaction/**
+        - Method=GET,POST,PUT,DELETE
+        filters:
+        - name: AuthenticationFiltering   
+       
+  
+   
+
+
+
+
+        
+    
             
             
